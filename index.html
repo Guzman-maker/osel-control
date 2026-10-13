@@ -236,7 +236,7 @@ document.documentElement.dataset.theme='dark';
 const KDB='osel_saas_db',ROLES={'Vendedor':'vend','Igualador':'vend','Administrador de Sucursal':'admin'},MAXIP={basico:1,pro:3,enterprise:6};
 let TEN=null,IPX='',SS={s:false},RB=0,PT;
 /* ===== CONFIGURA AQUÍ (Supabase → Project Settings → API) ===== */
-const SB_URL='https://TU-PROYECTO.supabase.co',SB_KEY='TU-ANON-KEY',sb=supabase.createClient(SB_URL,SB_KEY);
+const SB_URL='https://keosfvlcwrudphlfvxbc.supabase.co',SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtlb3Nmdmxjd3J1ZHBobGZ2eGJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4OTk3ODMsImV4cCI6MjEwNzQ3NTc4M30.vrVpMr0QAZs5jUou5dVIMQUNSjH4IMXfK6FM7vaSU3Y',sb=supabase.createClient(SB_URL,SB_KEY);
 const DB={tienda:null,usuarios:[]},db=()=>({usuarios:DB.usuarios}),tienda=()=>DB.tienda,own=()=>U&&U.owner,nUsr=()=>1+DB.usuarios.filter(u=>u.activo).length,setT=t=>{DB.tienda=Object.assign({},t,{ips:t.ips_autorizadas||[]})};
 async function miIP(){if(IPX)return IPX;try{const c=new AbortController();setTimeout(()=>c.abort(),2500);IPX=(await(await fetch('https://api.ipify.org?format=json',{signal:c.signal})).json()).ip}catch(e){IPX='127.0.0.1'}return IPX}
 /* MIDDLEWARE (estado verificado por el servidor en abrir_sesion / estado_sesion) */
