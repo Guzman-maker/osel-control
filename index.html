@@ -240,10 +240,10 @@ const SB_URL='https://keosfvlcwrudphlfvxbc.supabase.co',SB_KEY='eyJhbGciOiJIUzI1
 const DB={tienda:null,usuarios:[]},db=()=>({usuarios:DB.usuarios}),tienda=()=>DB.tienda,own=()=>U&&U.owner,nUsr=()=>1+DB.usuarios.filter(u=>u.activo).length,setT=t=>{DB.tienda=Object.assign({},t,{ips:t.ips_autorizadas||[]})};
 async function miIP(){if(IPX)return IPX;try{const c=new AbortController();setTimeout(()=>c.abort(),2500);IPX=(await(await fetch('https://api.ipify.org?format=json',{signal:c.signal})).json()).ip}catch(e){IPX='127.0.0.1'}return IPX}
 /* MIDDLEWARE (estado verificado por el servidor en abrir_sesion / estado_sesion) */
-const efec=t=>t.estatus_pago=='Activo'&&t.fecha_corte<hoy()?'Suspendido':t.estatus_pago;
-function mw(){const t=DB.tienda;if(!U||!t||!SS.s)return{ok:false,code:'SESION',msg:SS.m||'Sesión no válida'};const e=t.estatus_pago=='Activo'&&t.fecha_corte<hoy()?'Suspendido':t.estatus_pago;if(e!='Activo')return{ok:false,code:'PAGO',msg:e=='Inactivo'?'Tienda inactiva: falta activar suscripción':'Tienda bloqueada por falta de pago'};return{ok:true}}
+const efec=t=>t.estatus_pago=='Activo'&&vence(t)?'Suspendido':t.estatus_pago;
+function mw(){const t=DB.tienda;if(!U||!t||!SS.s)return{ok:false,code:'SESION',msg:SS.m||'Sesión no válida'};const e=t.estatus_pago=='Activo'&&vence(t)?'Suspendido':t.estatus_pago;if(e!='Activo')return{ok:false,code:'PAGO',msg:e=='Inactivo'?'Tienda inactiva: falta activar suscripción':'Tienda bloqueada por falta de pago'};return{ok:true}}
 function entrar(t){TEN=t.id_tenant;K='osel_ctrl_v1_'+TEN;KC='osel_cuenta_v1_'+TEN;try{CU=JSON.parse(localStorage.getItem(KC))}catch(e){}CU=CU||{suc:[{id:1,nombre:'Matriz'}]};CU.plan=t.plan||'basico';CU.sus={estatus:efec(t),inicio:t.fecha_inicio||'',corte:t.fecha_corte||''};localStorage.setItem(KC,JSON.stringify(CU));SUC=1;load();D.usuarios=[];D.cfg.neg=t.nombre;V='dash'}
-async function salir(m){const s=U&&U.sid;U=null;TEN=null;SS={s:false};DB.tienda=null;DB.usuarios=[];$('#dlg').open&&X();render();if(s)await sb.rpc('cerrar_sesion',{p_sid:s});await sb.auth.signOut();if(m)toast(m)}
+async function salir(m){const s=U&&U.sid;U=null;TEN=null;SS={s:false};DB.tienda=null;DB.usuarios=[];$('#dlg').open&&X();render();if(m){toast(m);return}if(s)await sb.rpc('cerrar_sesion',{p_sid:s});await sb.auth.signOut()}
 async function refr(){if(!U||RB)return;RB=1;try{const{data,error}=await sb.rpc('estado_sesion',{p_sid:U.sid});if(error||!data)return;if(!data.ok){SS={s:false,m:data.msg};return salir(data.msg)}const t=data.tienda,ch=efec(t)!=CU.sus.estatus||(t.plan&&t.plan!=CU.plan);setT(t);if(ch){CU.plan=t.plan||CU.plan;CU.sus={estatus:efec(t),inicio:t.fecha_inicio||'',corte:t.fecha_corte||''};localStorage.setItem(KC,JSON.stringify(CU));render()}}finally{RB=0}}
 setInterval(refr,4000);
 /* ----- INTERFAZ 1: login unificado ----- */
@@ -390,15 +390,16 @@ las funciones admin_* rechazan a cualquier otra cuenta (ver admin_panel.sql). */
 const DEVMAIL='dev@osel.app';let ISDEV=false,ADM=null,ADML=0;
 const PRECIO={basico:499,pro:1199,enterprise:2499},PNOM={basico:'Básico',pro:'Pro',enterprise:'Enterprise'};
 const durTxt=n=>n==1?'1 día':n==7?'1 semana':n==30?'1 mes':n%30==0?(n/30)+' meses':n%7==0?(n/7)+' semanas':n+' días';
-const _ini=iniciar;iniciar=async function(){try{const{data:{user}}=await sb.auth.getUser();ISDEV=!!user&&String(user.email||'').toLowerCase()==DEVMAIL}catch(e){ISDEV=false}return _ini.apply(this,arguments)};
-const _sal=salir;salir=async function(m){ISDEV=false;ADM=null;return _sal(m)};
+let ISDEVK=null;
+function devChk(){if(!U){ISDEV=false;ISDEVK=null;ADM=null;return}if(ISDEVK===U.sid)return;ISDEVK=U.sid;sb.auth.getSession().then(({data})=>{const on=String(data&&data.session&&data.session.user&&data.session.user.email||'').toLowerCase()==DEVMAIL;if(on!=ISDEV){ISDEV=on;render()}}).catch(()=>{})}
+const _r3=render;render=function(){devChk();return _r3.apply(this,arguments)};
 async function admCargar(){if(ADML)return;ADML=1;
  try{const[a,b]=await Promise.all([sb.rpc('admin_listar_tiendas'),sb.rpc('admin_listar_codigos')]);
   if(a.error||b.error||!a.data||!a.data.ok||!b.data||!b.data.ok){const m=(a.error||b.error||{}).message||(a.data&&a.data.msg)||'No autorizado';ADM={err:/function|schema cache|not exist/i.test(m)?'Falta instalar admin_panel.sql en Supabase':m}}
   else ADM={t:a.data.tiendas||[],c:b.data.codigos||[]}}catch(e){ADM={err:e.message}}
  ADML=0;render()}
 const admRefresh=()=>{ADM=null;render()};
-const admEst=t=>efec({estatus_pago:t.estatus_pago||'Inactivo',fecha_corte:t.fecha_corte||'9999-12-31'});
+const admEst=t=>{const e=t.estatus_pago||'Inactivo';if(e!='Activo')return e;return(t.corte_at?Date.now()>Date.parse(t.corte_at):(t.fecha_corte||'9999')<hoy())?'Suspendido':'Activo'};
 const admCodEst=c=>!c.activo?'Desactivado':c.vence&&c.vence<lhoy()?'Vencido':c.usos>=c.max_usos?'Agotado':'Disponible';
 function admDur(){$('#ag-cu').style.display=$('#ag-dur').value=='x'?'':'none'}
 async function admGen(){const d=$('#ag-dur').value,dias=d=='x'?Math.round((+$('#ag-n').value||0)*(+$('#ag-u').value)):+d;
@@ -426,16 +427,21 @@ views.adm=()=>{if(!ISDEV)return'';if(!ADM){admCargar();return'<div class=card><p
 <div class=g2><label>Vigencia del código: días para canjearlo (vacío = sin vencimiento)<input id=ag-v type=number min=1 placeholder="Sin vencimiento"></label><label>Nota / campaña (opcional)<input id=ag-note maxlength=60></label></div>
 <div class=ac><button class=p onclick="admGen()">Generar códigos únicos</button></div></div>
 <div class=card><h2>Códigos promocionales</h2><div class=bar><input placeholder="Buscar código, plan o nota…" oninput="flt(this)"><button onclick="admRefresh()">Actualizar</button></div>${C.length?tb(['Código','Plan','Duración','Usos','Vence','Estado',''],C.map(c=>{const e=admCodEst(c);return`<tr data-s="${E([c.codigo,PNOM[c.plan],c.nota,e].join(' ').toLowerCase())}"><td><b>${E(c.codigo)}</b>${c.nota?`<br><span class=mu>${E(c.nota)}</span>`:''}${(c.canjes||[]).length?`<br><span class=mu>Canjeado por: ${(c.canjes).map(x=>E(x.tienda||'?')).join(', ')}</span>`:''}</td><td>${E(PNOM[c.plan]||c.plan)}</td><td>${durTxt(c.duracion_dias)}</td><td>${c.usos}/${c.max_usos}</td><td>${c.vence||'Sin vencimiento'}</td><td><span style="color:${cc[e]}">● ${e}</span></td><td><button onclick="admCopiarCod('${E(c.codigo)}')">Copiar</button> <button onclick="admTog(${c.id},${!c.activo})">${c.activo?'Desactivar':'Activar'}</button> <button class=x onclick="admDel(${c.id})">Borrar</button></td></tr>`})):'<p class=mu>Aún no hay códigos. Genera el primero arriba.</p>'}</div>
-<div class=card><h2>Todas las cuentas</h2><div class=bar><input placeholder="Buscar tienda, dueño o plan…" oninput="flt(this)"></div>${T.length?tb(['Tienda','Dueño','Plan','Estatus','Inicio','Corte','Usuarios','Clientes'],T.map(t=>{const e=admEst(t);return`<tr data-s="${E([t.nombre,t.dueno,t.plan,PNOM[t.plan],e].join(' ').toLowerCase())}"><td><b>${E(t.nombre||'(sin nombre)')}</b></td><td>${E(t.dueno||'—')}</td><td>${E(PNOM[t.plan]||t.plan||'—')}</td><td><span style="color:${col[e]||'inherit'}">● ${E(e)}</span></td><td>${E(t.fecha_inicio||'—')}</td><td>${E(t.fecha_corte||'—')}</td><td>${t.n_usuarios??'—'}</td><td>${t.n_clientes??'—'}</td></tr>`})):'<p class=mu>Aún no hay cuentas creadas.</p>'}</div>${own()?'':redimirHTML()}`};
+<div class=card><h2>Todas las cuentas</h2><div class=bar><input placeholder="Buscar tienda, dueño o plan…" oninput="flt(this)"></div>${T.length?tb(['Tienda','Dueño','Plan','Estatus','Inicio','Corte','Usuarios','Clientes'],T.map(t=>{const e=admEst(t);return`<tr data-s="${E([t.nombre,t.dueno,t.plan,PNOM[t.plan],e].join(' ').toLowerCase())}"><td><b>${E(t.nombre||'(sin nombre)')}</b></td><td>${E(t.dueno||'—')}</td><td>${E(PNOM[t.plan]||t.plan||'—')}</td><td><span style="color:${col[e]||'inherit'}">● ${E(e)}</span></td><td>${E(t.fecha_inicio||'—')}</td><td>${E(t.corte_at?new Date(t.corte_at).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'}):(t.fecha_corte||'—'))}</td><td>${t.n_usuarios??'—'}</td><td>${t.n_clientes??'—'}</td></tr>`})):'<p class=mu>Aún no hay cuentas creadas.</p>'}</div>${own()?'':redimirHTML()}`};
 
 /* Canje de códigos promocionales (dueños de tienda): se muestra al final de Suscripción */
-const redimirHTML=()=>`<div class=card><h3>Código promocional</h3><p class=mu>¿Tienes un código? Actívalo aquí para iniciar o extender tu membresía.</p><div class=bar><input id=promo placeholder="OSEL-XXXX-XXXX-XXXX" autocomplete=off autocapitalize=characters><button class=p onclick="canjear()">Canjear código</button></div></div>`;
+const redimirHTML=()=>`<div class=card><h3>Código promocional</h3><p class=mu>¿Tienes un código? Actívalo aquí para iniciar o extender tu membresía.</p>${CAT&&CU&&CU.sus&&CAT.f==CU.sus.corte?`<p class=mu>Tu membresía vence: <b>${new Date(CAT.ms).toLocaleString('es-MX',{dateStyle:'medium',timeStyle:'short'})}</b></p>`:''}<div class=bar><input id=promo placeholder="OSEL-XXXX-XXXX-XXXX" autocomplete=off autocapitalize=characters><button class=p onclick="canjear()">Canjear código</button></div></div>`;
 async function canjear(){const c=($('#promo').value||'').trim();if(!c)return toast('Escribe tu código');
- const{data,error}=await sb.rpc('canjear_codigo',{p_codigo:c});
- if(error||!data)return toast(/function|schema cache|not exist/i.test((error||{}).message||'')?'Los códigos aún no están disponibles':'No se pudo canjear el código');
+ const{data,error}=await sb.rpc('canjear_codigo',{p_codigo:c,p_tz:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC'});
+ if(error||!data)return toast(/function|schema cache|not exist/i.test((error||{}).message||'')?'Los códigos aún no están disponibles (falta actualizar admin_panel.sql)':'No se pudo canjear el código');
  if(!data.ok)return toast(data.msg);
- await refr();CU.plan=data.plan;CU.sus={estatus:'Activo',inicio:data.inicio||CU.sus.inicio,corte:data.corte};try{localStorage.setItem(KC,JSON.stringify(CU))}catch(e){}
- toast(data.msg);render()}
+ CAT={ms:+data.ms,f:data.corte};CU.plan=data.plan;CU.sus={estatus:'Activo',inicio:data.inicio||CU.sus.inicio,corte:data.corte};try{localStorage.setItem(KC,JSON.stringify(CU))}catch(e){}
+ try{await refr()}catch(e){}
+ CAT={ms:+data.ms,f:data.corte};toast(data.msg);render()}
+var CAT=null;
+const vence=t=>CAT&&CAT.f==t.fecha_corte?Date.now()>CAT.ms:t.fecha_corte<hoy();
+async function corteSync(){if(!U||!TEN)return;try{const{data}=await sb.rpc('mi_corte');if(data&&data.ok)CAT=data.ms?{ms:+data.ms,f:data.f}:null}catch(e){}}
+setInterval(corteSync,3000);
 const _vs=views.sus;views.sus=()=>_vs()+redimirHTML();
 verifSus();load();render();boot();
 </script></body></html>
