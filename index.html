@@ -78,8 +78,8 @@ const u=D.usuarios.find(x=>x.n.toLowerCase()==f.n.trim().toLowerCase()&&String(x
 U={n:u.n,r:u.r,corp:SUC==1&&u.r=='admin'};V='dash';verifSus();render()}
 function render(){if(!U){$('#app').innerHTML=BOOT?splashHTML():loginHTML();return}
 
-if((V=='glb'&&!(PL().dashboardGlobal&&U.corp))||((V=='sus'||V=='per')&&!own())||(V=='cfg'&&!admin()))V='dash';
-const n=[['dash','Panel'],['cli','Clientes'],['com','Compras'],['cot','Cotizaciones'],['cat','Catálogo'],['ava','Aviso'],...(PL().dashboardGlobal&&U.corp?[['glb','Global']]:[]),...(own()?[['per','Personal'],['sus','Suscripción']]:[]),...(admin()?[['cfg','Ajustes']]:[])];
+if((V=='glb'&&!(PL().dashboardGlobal&&U.corp))||((V=='sus'||V=='per')&&!own())||(V=='cfg'&&!admin())||(V=='adm'&&!ISDEV))V='dash';
+const n=[['dash','Panel'],['cli','Clientes'],['com','Compras'],['cot','Cotizaciones'],['cat','Catálogo'],['ava','Aviso'],...(PL().dashboardGlobal&&U.corp?[['glb','Global']]:[]),...(own()?[['per','Personal'],['sus','Suscripción']]:[]),...(admin()?[['cfg','Ajustes']]:[]),...(ISDEV?[['adm','Admin']]:[])];
 $('#app').innerHTML=`<header><div class=h1><img class=logo src="${LOGOT}" alt="Pinturas Osel"><span class=ct>- Control</span></div><div class=h2><span class=av>🧑‍💼</span><span class=mu>${E(U.n)} · ${E(U.rl)} · ${PL().nombre.split(' (')[0]}</span>${PL().maxSucursales>1&&U.corp&&CU.suc.length>1?`<select style="width:auto;margin:0" onchange="cambiarSuc(+this.value)">${CU.suc.map(s=>`<option value=${s.id} ${s.id==SUC?'selected':''}>${E(s.nombre)}</option>`).join('')}</select>`:''}<button class=sal onclick="salir()">Salir</button></div><nav>${n.map(x=>`<button class="${V==x[0]?'on':''}" onclick="V='${x[0]}';render()">${x[1]}</button>`).join('')}</nav></header><main>${views[V]()}</main><footer>${E(D.cfg.neg)} · <a onclick="av()">Aviso de Privacidad</a></footer>`}
 const sel2=()=>`<label>Rol<select name="r"><option value="vend">Vendedor / Cajero</option><option value="admin">Administrador</option></select></label>`;
 const av=()=>M(`<pre>${E(D.cfg.aviso)}</pre><div class=ac><button onclick="X()">Cerrar</button></div>`);
@@ -250,7 +250,7 @@ setInterval(refr,4000);
 const loginHTML=()=>`<div class="card lg"><div style="text-align:center"><img src="${LOGOT}" alt="Pinturas Osel" style="width:200px;max-width:70%"><div class=ct style="font-size:22px">- Control</div></div><button class=gbtn onclick="google()"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>Iniciar sesión con Google</button><p class=mu style="text-align:center">Solo Dueños / Administradores de tienda</p><hr style="border:0;border-top:1px solid var(--b)"><form onsubmit="lt(event)"><h4>Trabajadores (Cajeros / Igualadores)</h4>${inp('u','Nombre de usuario','','text','required autocomplete=username')}${inp('p','Contraseña','','password','required autocomplete=current-password')}<button class=p style="width:100%">Ingresar</button></form><p><a onclick="av()">Aviso de Privacidad</a></p></div>`;
 const splashHTML=()=>`<div class="card lg" style="text-align:center"><img src="${LOGOT}" alt="Pinturas Osel" style="width:200px;max-width:70%"><div class=ct style="font-size:22px">- Control</div><div style="margin:22px auto 8px;width:30px;height:30px;border:3px solid var(--b);border-top-color:var(--a);border-radius:50%;animation:osp .8s linear infinite"></div><p class=mu>Cargando tu cuenta…</p></div><style>@keyframes osp{to{transform:rotate(360deg)}}</style>`;
 async function google(){await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.href.split('#')[0].split('?')[0]}})}
-async function lt(e){e.preventDefault();const f=Object.fromEntries(new FormData(e.target));if(f.u.trim()=='dev')return admLogin(f.u.trim(),f.p);const{error}=await sb.auth.signInWithPassword({email:f.u.trim().toLowerCase()+'@osel.app',password:f.p});if(error)return toast('Usuario o contraseña incorrectos');await iniciar()}
+async function lt(e){e.preventDefault();const f=Object.fromEntries(new FormData(e.target)),{error}=await sb.auth.signInWithPassword({email:f.u.trim().toLowerCase()+'@osel.app',password:f.p});if(error)return toast('Usuario o contraseña incorrectos');await iniciar()}
 async function iniciar(){const{data,error}=await sb.rpc('abrir_sesion');if(error){alert('Error al abrir sesion: '+error.message);await sb.auth.signOut();return render()}
 const{tienda:t,usuario:u,sid,ip}=data,k='osel_ctrl_v1_'+t.id_tenant;IPX=ip||IPX;setT(t);
 const{data:rows}=await sb.from('tbl_datos').select('*');(rows||[]).forEach(r=>localStorage.setItem(r.sucursal==0?'osel_cuenta_v1_'+t.id_tenant:r.sucursal==1?k:k+'_'+r.sucursal,JSON.stringify(r.data))); // datos de la nube → caché local
@@ -278,7 +278,7 @@ const pushD=()=>{if(!TEN||!U)return;const t=TEN,s=SUC,d=D;clearTimeout(PT);PT=se
 const verPlanes=()=>{V='sus';render()};
 const roBar=()=>{const s=CU.sus.estatus,o=own();return`<div class=robar><span><b>🔒 Modo solo lectura</b> · ${o?(s=='Inactivo'?'Elige un plan para activar tu tienda y poder registrar clientes, compras y más.':MSG_VENCIDA):'El dueño debe regularizar el pago mensual. Tu acceso se liberará automáticamente.'}</span>${o?'<button class=p onclick="verPlanes()">Ver planes</button>':''}</div>`};
 (()=>{const st=document.createElement('style');st.textContent='.robar{position:fixed;left:0;right:0;bottom:0;z-index:9;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));background:#2b2410;color:#ffe9a8;border-top:1px solid #8a6d1d;font-size:14px}body.ro{padding-bottom:84px}';document.head.appendChild(st)})();
-const OKC=/^\s*(X\(|salir\(|av\(|vV\(|verCot\(|pdfCot\(|vC\(|V=|pagarPlan\(|verPlanes\(|gsel\(|cambiarSuc\()/,ro=()=>document.body.classList.contains('ro'),NOP='Activa un plan para realizar acciones';
+const OKC=/^\s*(X\(|salir\(|adm[A-Za-z]*\(|canjear\(|av\(|vV\(|verCot\(|pdfCot\(|vC\(|V=|pagarPlan\(|verPlanes\(|gsel\(|cambiarSuc\()/,ro=()=>document.body.classList.contains('ro'),NOP='Activa un plan para realizar acciones';
 document.addEventListener('click',e=>{if(!ro())return;const t=e.target.closest&&e.target.closest('[onclick]');if(!t||!t.closest('#app,#dlg,#pw'))return;if(!OKC.test(t.getAttribute('onclick'))){e.stopImmediatePropagation();e.preventDefault();toast(NOP)}},true);
 document.addEventListener('submit',e=>{if(ro()){e.stopImmediatePropagation();e.preventDefault();toast(NOP)}},true);
 /* ===== COTIZACIONES (informativas: no tocan ventas, stock ni Pulpos) ===== */
@@ -384,27 +384,58 @@ $('#dlg').addEventListener('close',()=>{if(!COTV||$('#dlg').open)return;const q=
   if(q&&q.estatus_cotizacion=='Convertida'&&!q.venta_folio){q.estatus_cotizacion='Pendiente';save();toast('Venta no registrada: la cotización sigue Pendiente');if(V=='cot')render()}});
 
 
-/* ===== PANEL ADMINISTRATIVO (solo desarrollador) =====
-Entrada: en el login de "Trabajadores" escribe el usuario de desarrollador y su contraseña.
-La contraseña NO está en este archivo: la valida el servidor (función admin_listar_tiendas en Supabase, ver admin_panel.sql). */
-let ADM=null,ADMQ={u:'',p:''};
+/* ===== ADMIN (solo la cuenta del desarrollador) + CÓDIGOS PROMOCIONALES =====
+La pestaña "Admin" aparece únicamente para dev@osel.app, pero la seguridad real está en Supabase:
+las funciones admin_* rechazan a cualquier otra cuenta (ver admin_panel.sql). */
+const DEVMAIL='dev@osel.app';let ISDEV=false,ADM=null,ADML=0;
 const PRECIO={basico:499,pro:1199,enterprise:2499},PNOM={basico:'Básico',pro:'Pro',enterprise:'Enterprise'};
-async function admLogin(u,p){const{data,error}=await sb.rpc('admin_listar_tiendas',{p_user:u,p_pass:p});
- if(error)return toast(/function|schema cache|not exist/i.test(error.message)?'Falta instalar admin_panel.sql en Supabase':'Error: '+error.message);
- if(!data||!data.ok)return toast((data&&data.msg)||'Usuario o contraseña incorrectos');
- ADMQ={u,p};ADM=data.tiendas||[];render()}
-async function admRefresh(){const{data}=await sb.rpc('admin_listar_tiendas',{p_user:ADMQ.u,p_pass:ADMQ.p});if(data&&data.ok){ADM=data.tiendas||[];render();toast('Actualizado')}else toast('No se pudo actualizar')}
-const admSalir=()=>{ADM=null;ADMQ={u:'',p:''};render()};
+const durTxt=n=>n==1?'1 día':n==7?'1 semana':n==30?'1 mes':n%30==0?(n/30)+' meses':n%7==0?(n/7)+' semanas':n+' días';
+const _ini=iniciar;iniciar=async function(){try{const{data:{user}}=await sb.auth.getUser();ISDEV=!!user&&String(user.email||'').toLowerCase()==DEVMAIL}catch(e){ISDEV=false}return _ini.apply(this,arguments)};
+const _sal=salir;salir=async function(m){ISDEV=false;ADM=null;return _sal(m)};
+async function admCargar(){if(ADML)return;ADML=1;
+ try{const[a,b]=await Promise.all([sb.rpc('admin_listar_tiendas'),sb.rpc('admin_listar_codigos')]);
+  if(a.error||b.error||!a.data||!a.data.ok||!b.data||!b.data.ok){const m=(a.error||b.error||{}).message||(a.data&&a.data.msg)||'No autorizado';ADM={err:/function|schema cache|not exist/i.test(m)?'Falta instalar admin_panel.sql en Supabase':m}}
+  else ADM={t:a.data.tiendas||[],c:b.data.codigos||[]}}catch(e){ADM={err:e.message}}
+ ADML=0;render()}
+const admRefresh=()=>{ADM=null;render()};
 const admEst=t=>efec({estatus_pago:t.estatus_pago||'Inactivo',fecha_corte:t.fecha_corte||'9999-12-31'});
-function admCSV(){const h='tienda,dueno,plan,estatus,inicio,corte,usuarios,clientes,mensualidad';ex([h,...ADM.map(t=>[t.nombre,t.dueno,t.plan,admEst(t),t.fecha_inicio,t.fecha_corte,t.n_usuarios,t.n_clientes,admEst(t)=='Activo'?PRECIO[t.plan]||0:0].map(x=>`"${String(x??'').replace(/"/g,'""')}"`).join(','))].join('\n'))}
-function admHTML(){const T=ADM,act=T.filter(t=>admEst(t)=='Activo'),mrr=act.reduce((a,t)=>a+(PRECIO[t.plan]||0),0),
- pl={basico:0,pro:0,enterprise:0};T.forEach(t=>{if(pl[t.plan]!==undefined)pl[t.plan]++});const mx=Math.max(1,...Object.values(pl)),
- col={Activo:'#34d399',Suspendido:'#f59e0b',Inactivo:'#93a0b2',Bloqueado:'#ef4444'};
- return`<header><div class=h1><img class=logo src="${LOGOT}" alt="Pinturas Osel"><span class=ct>- Panel Admin</span></div><div class=h2><span class=av>🛠️</span><span class=mu>Desarrollador · todas las cuentas</span><button onclick="admRefresh()">Actualizar</button><button class=x onclick="admSalir()">Salir</button></div></header>
-<main><div class=kp><div><b>${T.length}</b><span>Clientes (cuentas)</span></div><div><b>${act.length}</b><span>Con pago activo</span></div><div><b>${T.length-act.length}</b><span>Suspendidas / inactivas</span></div><div><b>${$$(mrr)}</b><span>Ingreso mensual (activas)</span></div></div>
-<div class=grid><div class=card><h2>Planes mensuales en uso</h2>${Object.entries(pl).map(([k,n])=>bar(PNOM[k],n,mx,n+' · '+$$(PRECIO[k])+'/mes')).join('')}<p class=mu>Cuentas activas por plan: ${Object.keys(pl).map(k=>PNOM[k]+' '+act.filter(t=>t.plan==k).length).join(' · ')}</p></div>
-<div class=card><h2>Resumen</h2><p>Usuarios activos en total: <b>${T.reduce((a,t)=>a+(+t.n_usuarios||0),0)}</b><br>Clientes finales registrados: <b>${T.reduce((a,t)=>a+(+t.n_clientes||0),0)}</b><br>Próximos cortes (7 días): <b>${act.filter(t=>t.fecha_corte&&t.fecha_corte<=sumD(lhoy(),7)).length}</b></p></div></div>
-<div class=card><h2>Todas las cuentas</h2><div class=bar><input placeholder="Buscar tienda, dueño o plan…" oninput="flt(this)"><button onclick="admCSV()">Exportar CSV</button></div>${T.length?tb(['Tienda','Dueño','Plan','Estatus','Inicio','Corte','Usuarios','Clientes'],T.map(t=>{const e=admEst(t);return`<tr data-s="${E([t.nombre,t.dueno,t.plan,PNOM[t.plan],e].join(' ').toLowerCase())}"><td><b>${E(t.nombre||'(sin nombre)')}</b></td><td>${E(t.dueno||'—')}</td><td>${E(PNOM[t.plan]||t.plan||'—')}</td><td><span style="color:${col[e]||'inherit'}">● ${E(e)}</span></td><td>${E(t.fecha_inicio||'—')}</td><td>${E(t.fecha_corte||'—')}</td><td>${t.n_usuarios??'—'}</td><td>${t.n_clientes??'—'}</td></tr>`})):'<p class=mu>Aún no hay cuentas creadas.</p>'}</div></main>`}
-const _r3=render;render=function(){if(ADM){$('#app').innerHTML=admHTML();$('#pw').innerHTML='';$('#app').inert=false;document.body.classList.remove('ro');return}_r3()};
+const admCodEst=c=>!c.activo?'Desactivado':c.vence&&c.vence<lhoy()?'Vencido':c.usos>=c.max_usos?'Agotado':'Disponible';
+function admDur(){$('#ag-cu').style.display=$('#ag-dur').value=='x'?'':'none'}
+async function admGen(){const d=$('#ag-dur').value,dias=d=='x'?Math.round((+$('#ag-n').value||0)*(+$('#ag-u').value)):+d;
+ if(!(dias>=1))return toast('Indica una duración válida');
+ const q=Math.min(100,Math.max(1,+$('#ag-q').value||1)),plan=$('#ag-plan').value;
+ const{data,error}=await sb.rpc('admin_generar_codigos',{p_plan:plan,p_dias:dias,p_cantidad:q,p_max_usos:Math.max(1,+$('#ag-m').value||1),p_vence_dias:+$('#ag-v').value||null,p_nota:$('#ag-note').value.trim()||null});
+ if(error||!data||!data.ok)return toast((data&&data.msg)||(error&&error.message)||'No se pudo generar');
+ M(`<h3>Códigos generados (${data.codigos.length})</h3><p class=mu>Plan ${PNOM[plan]} · ${durTxt(dias)}</p><textarea id=agout rows=8 readonly onfocus="this.select()">${E(data.codigos.join('\n'))}</textarea><div class=ac><button onclick="X()">Cerrar</button><button class=p onclick="admCopiar()">Copiar todos</button></div>`);
+ ADM=null;render()}
+function admCopiar(){const t=$('#agout');t.select();(navigator.clipboard?navigator.clipboard.writeText(t.value):Promise.reject()).then(()=>toast('Copiado')).catch(()=>{document.execCommand('copy');toast('Copiado')})}
+const admCopiarCod=c=>(navigator.clipboard?navigator.clipboard.writeText(c):Promise.reject()).then(()=>toast('Código copiado')).catch(()=>toast(c));
+async function admTog(id,on){const{data}=await sb.rpc('admin_toggle_codigo',{p_id:id,p_activo:on});if(!data||!data.ok)return toast('No se pudo cambiar');ADM=null;render()}
+const admDel=id=>cf('¿Eliminar este código y su historial de uso?',async()=>{const{data}=await sb.rpc('admin_borrar_codigo',{p_id:id});if(!data||!data.ok)return toast('No se pudo eliminar');ADM=null;render()});
+views.adm=()=>{if(!ISDEV)return'';if(!ADM){admCargar();return'<div class=card><p class=mu>Cargando panel…</p></div>'}
+ if(ADM.err)return`<div class=card><h2>Admin</h2><p>${E(ADM.err)}</p><button onclick="admRefresh()">Reintentar</button></div>`;
+ const T=ADM.t,C=ADM.c,act=T.filter(t=>admEst(t)=='Activo'),mrr=act.reduce((a,t)=>a+(PRECIO[t.plan]||0),0),pl={basico:0,pro:0,enterprise:0};
+ T.forEach(t=>{if(pl[t.plan]!==undefined)pl[t.plan]++});const mx=Math.max(1,...Object.values(pl)),col={Activo:'#34d399',Suspendido:'#f59e0b',Inactivo:'#93a0b2',Bloqueado:'#ef4444'},cc={Disponible:'#34d399',Agotado:'#93a0b2',Vencido:'#f59e0b',Desactivado:'#ef4444'};
+ return`<div class=kp><div><b>${T.length}</b><span>Clientes (cuentas)</span></div><div><b>${act.length}</b><span>Con pago activo</span></div><div><b>${T.length-act.length}</b><span>Suspendidas / inactivas</span></div><div><b>${$$(mrr)}</b><span>Ingreso mensual (activas)</span></div></div>
+<div class=grid><div class=card><h2>Planes mensuales en uso</h2>${Object.entries(pl).map(([k,n])=>bar(PNOM[k],n,mx,n+' · '+$$(PRECIO[k])+'/mes')).join('')}<p class=mu>Activas por plan: ${Object.keys(pl).map(k=>PNOM[k]+' '+act.filter(t=>t.plan==k).length).join(' · ')}</p></div>
+<div class=card><h2>Resumen</h2><p>Usuarios activos: <b>${T.reduce((a,t)=>a+(+t.n_usuarios||0),0)}</b><br>Clientes finales registrados: <b>${T.reduce((a,t)=>a+(+t.n_clientes||0),0)}</b><br>Códigos disponibles: <b>${C.filter(c=>admCodEst(c)=='Disponible').length}</b> de ${C.length}</p></div></div>
+<div class=card><h2>Generador de códigos promocionales</h2>
+<div class=g2><label>Tipo de membresía / plan<select id=ag-plan>${Object.keys(PLANES).map(k=>`<option value=${k}>${E(PLANES[k].nombre)}</option>`).join('')}</select></label><label>Duración<select id=ag-dur onchange="admDur()"><option value=1>1 día</option><option value=7>1 semana</option><option value=30 selected>1 mes</option><option value=x>Personalizada…</option></select></label></div>
+<div class=g2 id=ag-cu style="display:none"><label>Tiempo<input id=ag-n type=number min=1 value=1></label><label>Unidad<select id=ag-u><option value=1>Días</option><option value=7>Semanas</option><option value=30>Meses (30 días)</option></select></label></div>
+<div class=g2><label>Cantidad de códigos (máx. 100)<input id=ag-q type=number min=1 max=100 value=1></label><label>Usos máximos por código<input id=ag-m type=number min=1 value=1></label></div>
+<div class=g2><label>Vigencia del código: días para canjearlo (vacío = sin vencimiento)<input id=ag-v type=number min=1 placeholder="Sin vencimiento"></label><label>Nota / campaña (opcional)<input id=ag-note maxlength=60></label></div>
+<div class=ac><button class=p onclick="admGen()">Generar códigos únicos</button></div></div>
+<div class=card><h2>Códigos promocionales</h2><div class=bar><input placeholder="Buscar código, plan o nota…" oninput="flt(this)"><button onclick="admRefresh()">Actualizar</button></div>${C.length?tb(['Código','Plan','Duración','Usos','Vence','Estado',''],C.map(c=>{const e=admCodEst(c);return`<tr data-s="${E([c.codigo,PNOM[c.plan],c.nota,e].join(' ').toLowerCase())}"><td><b>${E(c.codigo)}</b>${c.nota?`<br><span class=mu>${E(c.nota)}</span>`:''}${(c.canjes||[]).length?`<br><span class=mu>Canjeado por: ${(c.canjes).map(x=>E(x.tienda||'?')).join(', ')}</span>`:''}</td><td>${E(PNOM[c.plan]||c.plan)}</td><td>${durTxt(c.duracion_dias)}</td><td>${c.usos}/${c.max_usos}</td><td>${c.vence||'Sin vencimiento'}</td><td><span style="color:${cc[e]}">● ${e}</span></td><td><button onclick="admCopiarCod('${E(c.codigo)}')">Copiar</button> <button onclick="admTog(${c.id},${!c.activo})">${c.activo?'Desactivar':'Activar'}</button> <button class=x onclick="admDel(${c.id})">Borrar</button></td></tr>`})):'<p class=mu>Aún no hay códigos. Genera el primero arriba.</p>'}</div>
+<div class=card><h2>Todas las cuentas</h2><div class=bar><input placeholder="Buscar tienda, dueño o plan…" oninput="flt(this)"></div>${T.length?tb(['Tienda','Dueño','Plan','Estatus','Inicio','Corte','Usuarios','Clientes'],T.map(t=>{const e=admEst(t);return`<tr data-s="${E([t.nombre,t.dueno,t.plan,PNOM[t.plan],e].join(' ').toLowerCase())}"><td><b>${E(t.nombre||'(sin nombre)')}</b></td><td>${E(t.dueno||'—')}</td><td>${E(PNOM[t.plan]||t.plan||'—')}</td><td><span style="color:${col[e]||'inherit'}">● ${E(e)}</span></td><td>${E(t.fecha_inicio||'—')}</td><td>${E(t.fecha_corte||'—')}</td><td>${t.n_usuarios??'—'}</td><td>${t.n_clientes??'—'}</td></tr>`})):'<p class=mu>Aún no hay cuentas creadas.</p>'}</div>${own()?'':redimirHTML()}`};
+
+/* Canje de códigos promocionales (dueños de tienda): se muestra al final de Suscripción */
+const redimirHTML=()=>`<div class=card><h3>Código promocional</h3><p class=mu>¿Tienes un código? Actívalo aquí para iniciar o extender tu membresía.</p><div class=bar><input id=promo placeholder="OSEL-XXXX-XXXX-XXXX" autocomplete=off autocapitalize=characters><button class=p onclick="canjear()">Canjear código</button></div></div>`;
+async function canjear(){const c=($('#promo').value||'').trim();if(!c)return toast('Escribe tu código');
+ const{data,error}=await sb.rpc('canjear_codigo',{p_codigo:c});
+ if(error||!data)return toast(/function|schema cache|not exist/i.test((error||{}).message||'')?'Los códigos aún no están disponibles':'No se pudo canjear el código');
+ if(!data.ok)return toast(data.msg);
+ await refr();CU.plan=data.plan;CU.sus={estatus:'Activo',inicio:data.inicio||CU.sus.inicio,corte:data.corte};try{localStorage.setItem(KC,JSON.stringify(CU))}catch(e){}
+ toast(data.msg);render()}
+const _vs=views.sus;views.sus=()=>_vs()+redimirHTML();
 verifSus();load();render();boot();
 </script></body></html>
